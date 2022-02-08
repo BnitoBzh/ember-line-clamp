@@ -1,4 +1,4 @@
-import { module, test, skip } from 'qunit';
+import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { render, click } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
@@ -733,9 +733,8 @@ module('Integration | Component | line clamp', function (hooks) {
       .isFocused('show more button is focused');
   });
 
-  skip('resizing triggers component to re-truncate', async function (assert) {
-    assert.expect(4);
-    const done = assert.async();
+  test('resizing triggers component to re-truncate', async function (assert) {
+    assert.expect(3);
 
     // Render component
     await render(hbs`
@@ -747,49 +746,20 @@ module('Integration | Component | line clamp', function (hooks) {
       </div>
     `);
 
-    const element = this.element;
-    const seeMoreButtonBeforeResize = element.querySelectorAll(
-      '.lt-line-clamp__line .lt-line-clamp__more'
-    );
+    assert.ok(this.element, 'line clamp target exists');
 
-    assert.ok(element, 'line clamp target exists');
-
-    assert.strictEqual(
-      seeMoreButtonBeforeResize.length,
-      1,
-      'see more button exists'
-    );
-
-    assert.dom(element).containsText('... See More');
+    assert
+      .dom('[data-test-line-clamp-show-more]')
+      .exists('see more button exists');
 
     // Mimic window resize
-    element.querySelector('#test-container').style.width = '960px';
-    window.dispatchEvent(new CustomEvent('resize'));
+    this.element.querySelector('#test-container').style.width = '960px';
+    window.dispatchEvent(new Event('resize'));
 
-    setTimeout(() => {
-      const seeMoreButtonAfterResize = element.querySelectorAll(
-        '.lt-line-clamp__line .lt-line-clamp__more'
-      );
+    await new Promise((resolve) => setTimeout(resolve, 50));
 
-      assert.strictEqual(
-        seeMoreButtonAfterResize.length,
-        0,
-        'see more button does not exist'
-      );
-
-      done();
-    }, 10);
-    // const seeMoreButtonAfterResize = element.querySelectorAll('.lt-line-clamp__line .lt-line-clamp__more');
-
-    // assert.strictEqual(
-    //   seeMoreButtonAfterResize.length,
-    //   0,
-    //   'see more button does not exist'
-    // );
-
-    // assert.strictEqual(
-    //   element.innerText.trim(),
-    //   'helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld'
-    // );
+    assert
+      .dom('[data-test-line-clamp-show-more]')
+      .doesNotExist('see more button does not exist');
   });
 });

@@ -221,6 +221,7 @@ export default class LineClampComponent extends Component {
   @tracked _lineClampClass;
   @tracked _lineClampStyle;
   @tracked element;
+  @tracked targetWidth;
 
   /**
    * Property that returns a stripped version of the text with no <br> tags
@@ -274,6 +275,13 @@ export default class LineClampComponent extends Component {
 
     // Interativity of the component is driven by showMoreButton value
     this._isInteractive = this._showMoreButton;
+
+    // for resize event
+    this._getLines = this._getLines.bind(this);
+    this.onResize = this.onResize.bind(this);
+    this.onTruncate = this.onTruncate.bind(this);
+    this._measureWidth = this._measureWidth.bind(this);
+    this._calculateTargetWidth = this._calculateTargetWidth.bind(this);
   }
 
   @action
@@ -468,7 +476,9 @@ export default class LineClampComponent extends Component {
    * @private
    */
   _bindResize() {
-    this.unifiedEventHandler.register('window', 'resize', this.onResize);
+    this.unifiedEventHandler.register('window', 'resize', () => {
+      this.onResize();
+    });
     this._resizeHandlerRegistered = true;
   }
 
