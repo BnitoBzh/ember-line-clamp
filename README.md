@@ -9,11 +9,18 @@
 
 This Ember addon provides a component for truncating/clamping text.
 
-* Note: This component currently does not support block form.
+- Note: This component currently does not support block form.
 
 ## Installation
 
-* `npm install ember-line-clamp`
+- `npm install ember-line-clamp`
+- `yarn install ember-line-clamp`
+
+## Compatibility
+
+- Ember.js v3.24 or above
+- Ember CLI v3.24 or above
+- Node.js v12 or above
 
 ## Demo
 
@@ -21,18 +28,16 @@ Demo application [here](https://lstrrs.github.io/ember-line-clamp-website/)
 
 ## Usage
 
-To get started, place the `line-clamp` component in one of your templates and provide a string to the `text` attribute. The `line-clamp` component supports other attributes, for more details you can always look at the source code.
+To get started, place the `<LineClamp />` component in one of your templates and provide a string to the `@text` attribute. The `<LineClamp />` component supports other attributes, for more details you can always look at the source code.
 
 ### `text`
 
 The text attribute is not required but would be nice to truncate something.
 
-Default: ` `
+Default: `''`
 
 ```handlebars
-{{line-clamp
-  text="A really long text to truncate"
-}}
+<LineClamp @text='A really long text to truncate' />
 ```
 
 ### `lines`
@@ -42,10 +47,7 @@ This attribute allows you to set the number of lines to clamp the text.
 Default: `3`
 
 ```handlebars
-{{line-clamp
-  text="A really long text to truncate"
-  lines=2
-}}
+<LineClamp @text='A really long text to truncate' @lines={{2}} />
 ```
 
 ### `stripText`
@@ -55,11 +57,11 @@ This attribute allows user to prevent stripping text of `<br>` tags when clampin
 Default: `true`
 
 ```handlebars
-{{line-clamp
-  text="A really long text to truncate"
-  lines=2
-  stripText=false
-}}
+<LineClamp
+  @text='A really long text to truncate'
+  @lines={{2}}
+  @stripText={{false}}
+/>
 ```
 
 ### `ellipsis`
@@ -69,11 +71,11 @@ The characters/string to be used as the overflow element.
 Default: `...`
 
 ```handlebars
-{{line-clamp
-  text="A really long text to truncate"
-  lines=2
-  ellipsis="..."
-}}
+<LineClamp
+  @text='A really long text to truncate'
+  @lines={{2}}
+  @ellipsis='...'
+/>
 ```
 
 ### `interactive`
@@ -83,10 +85,7 @@ Line clamp is not always interactive, in fact if you use `-webkit-line-clamp` th
 Default: `true`
 
 ```handlebars
-{{line-clamp
-  text="A really long text to truncate"
-  interactive=false
-}}
+<LineClamp @text='A really long text to truncate' @interactive={{false}} />
 ```
 
 ### `truncate`
@@ -96,12 +95,15 @@ Some users might not like our style for the component, and they would like to do
 Default: `true`
 
 ```handlebars
-{{line-clamp
-  text="A really long text to truncate"
-  interactive=false
-  truncate=truncate
-}}
-<button class="super-fancy-style" {{action "toggleTruncate"}}>{{buttonText}}</button>
+<LineClamp
+  @text='A really long text to truncate'
+  @interactive={{false}}
+  @truncate={{truncate}}
+/>
+<button
+  class='super-fancy-style'
+  {{on 'click' this.toggleTruncate}}
+>{{buttonText}}</button>
 ```
 
 ### `showMoreButton`
@@ -111,10 +113,7 @@ This attribute enables/disables 'See More' functionality
 Default: `true`
 
 ```handlebars
-{{line-clamp
-  text="A really long text to truncate"
-  showMoreButton=false
-}}
+<LineClamp @text='A really long text to truncate' @showMoreButton={{false}} />
 ```
 
 ### `showLessButton`
@@ -124,10 +123,7 @@ This attribute enables/disables 'See Less' functionality
 Default: `true`
 
 ```handlebars
-{{line-clamp
-  text="A really long text to truncate"
-  showLessButton=false
-}}
+<LineClamp @text='A really long text to truncate' @showLessButton={{false}} />
 ```
 
 ### `seeMoreText`
@@ -137,11 +133,11 @@ This component should work in any language, hence this attribute allows you to s
 Default: `See More`
 
 ```handlebars
-{{line-clamp
-  text="A really long text to truncate"
-  showLessButton=false
-  seeMoreText="Ver Más"
-}}
+<LineClamp
+  @text='A really long text to truncate'
+  @showLessButton={{false}}
+  @seeMoreText='Ver Más'
+/>
 ```
 
 ### `seeMoreA11yText`
@@ -151,12 +147,12 @@ This component should have optional support for aria-label in the situation wher
 Default: `false`
 
 ```handlebars
-{{line-clamp
-  text="A really long text to truncate"
-  showLessButton=false
-  seeMoreText="See more"
-  seeMoreA11yText="A button which expands the content of this text"
-}}
+<LineClamp
+  @text='A really long text to truncate'
+  @showLessButton={{false}}
+  @seeMoreText='See more'
+  @seeMoreA11yText='A button which expands the content of this text'
+/>
 ```
 
 ### `seeLessText`
@@ -166,12 +162,12 @@ This component should work in any language, hence this attribute allows you to s
 Default: `See Less`
 
 ```handlebars
-{{line-clamp
-  text="A really long text to truncate"
-  showLessButton=false
-  seeMoreText="Read More"
-  seeLessText="Read Less"
-}}
+<LineClamp
+  @text='A really long text to truncate'
+  @showLessButton={{false}}
+  @seeMoreText='Read More'
+  @seeLessText='Read Less'
+/>
 ```
 
 ### `seeLessA11yText`
@@ -181,36 +177,36 @@ This component should have optional support for aria-label in the situation wher
 Default: `false`
 
 ```handlebars
-{{line-clamp
-  text="A really long text to truncate"
-  showLessButton=false
-  seeMoreText="Read More"
-  seeLessText="Read Less"
-  seeLessA11yText="A button which unexpands the content of this text"
-}}
+<LineClamp
+  @text='A really long text to truncate'
+  @showLessButton={{false}}
+  @seeMoreText='Read More'
+  @seeLessText='Read Less'
+  @seeLessA11yText='A button which unexpands the content of this text'
+/>
 ```
 
 ### `onExpand`
 
-This attribute allows you to pass an action/closure to trigger when text is expanded
+This attribute allows you to pass a closure to trigger when text is expanded
 
 ```handlebars
-{{line-clamp
-  text="A really long text to truncate"
-  onExpand=doSomethingWhenTextIsExpanded
-}}
+<LineClamp
+  @text='A really long text to truncate'
+  @onExpand={{this.doSomethingWhenTextIsExpanded}}
+/>
 ```
 
 ### `onCollapse`
 
-This attribute allows you to pass an action/closure to trigger when text is collapsed
+This attribute allows you to pass a closure to trigger when text is collapsed
 
 ```handlebars
-{{line-clamp
-  text="A really long text to truncate"
-  onExpand=doSomethingWhenTextIsExpanded
-  onCollapse=(action "doSomethingWhenTextIsCollapsed")
-}}
+<LineClamp
+  @text='A really long text to truncate'
+  @onExpand={{this.doSomethingWhenTextIsExpanded}}
+  @onCollapse={{this.doSomethingWhenTextIsCollapsed}}
+/>
 ```
 
 ### `useJsOnly`
@@ -220,11 +216,11 @@ This attribute allows you to ensure `handleTruncate` is called all the time. The
 Default: `false`
 
 ```handlebars
-{{line-clamp
-  text="A really long text to truncate"
-  useJsOnly=true
-  handleTruncate=(action "onHandleTruncate")
-}}
+<LineClamp
+  @text='A really long text to truncate'
+  @useJsOnly={{true}}
+  @handleTruncate={{this.onHandleTruncate}}
+/>
 ```
 
 ### `handleTruncate`
@@ -232,32 +228,30 @@ Default: `false`
 This attribute allows you to pass an action/closure to trigger every time the text goes through the truncation process, receives a boolean to determine if the text was truncated. Not called when the browser native CSS solutions are used.
 
 ```handlebars
-{{line-clamp
-  text="A really long text to truncate"
-  handleTruncate=(action "onHandleTruncate")
-}}
+<LineClamp
+  @text='A really long text to truncate'
+  @handleTruncate={{this.onHandleTruncate}}
+/>
 ```
 
 Note: Will not execute when the native CSS line-clamp is used because there is no good way currently to tell whether the browser actually truncated the text or not. If you need `handleTruncate` to run all the time, please enable `useJsOnly`.
 
 ```handlebars
-{{line-clamp
-  text="A really long text to truncate"
-  useJsOnly=true
-  handleTruncate=(action "onHandleTruncate")
-}}
+<LineClamp
+  @text='A really long text to truncate'
+  @useJsOnly={{true}}
+  @handleTruncate={{this.onHandleTruncate}}
+/>
 ```
 
-Then create an action that gets notified after the text is truncated. When the text is truncated and ellipsis applied, `didTruncate` will be `true`. When the text isn't truncated, `didTruncate` will be `false`. 
+Then create an action that gets notified after the text is truncated. When the text is truncated and ellipsis applied, `didTruncate` will be `true`. When the text isn't truncated, `didTruncate` will be `false`.
 
-```handlebars
-actions: {
-  onHandleTruncate(didTruncate) {
-    if(didTruncate) {
-      this.set('someProperty', true);
-    }
-  }
+```js
+// ...
+@action onHandleTruncate(didTruncate) {
+  if (didTruncate) this.someProperty = true;
 }
+// ...
 ```
 
 ## Dev TODOs
@@ -268,6 +262,6 @@ actions: {
 
 ## Thanks
 
-* [CSS Line Clamping](http://guerillalabs.co/blog/css-line-clamping.html) article
-* [@nilsynils](https://github.com/nilsynils) for his [Medium Post](https://medium.com/mofed/css-line-clamp-the-good-the-bad-and-the-straight-up-broken-865413f16e5)
-* [@One-com](https://github.com/One-com) for a [inspiration](https://github.com/One-com/react-truncate)
+- [CSS Line Clamping](http://guerillalabs.co/blog/css-line-clamping.html) article
+- [@nilsynils](https://github.com/nilsynils) for his [Medium Post](https://medium.com/mofed/css-line-clamp-the-good-the-bad-and-the-straight-up-broken-865413f16e5)
+- [@One-com](https://github.com/One-com) for a [inspiration](https://github.com/One-com/react-truncate)
