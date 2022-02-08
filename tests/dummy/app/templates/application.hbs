@@ -1,8 +1,84 @@
-<h2 id="title">Welcome to Ember</h2>
+{{page-title 'Dummy'}}
 
-{{line-clamp
-  text=model.text
-  lines=1
-}}
+<h2 id='title'>Welcome to Ember</h2>
+
+<div
+  id='test-container'
+  style='width: 250px; font-size: 16px; font-family: sans-serif;'
+>
+  <LineClamp @text={{this.model.text}} @lines={{1}} />
+</div>
+
+<div
+  id='test-container'
+  style='width: 250px; font-size: 16px; font-family: sans-serif;'
+>
+  <LineClamp
+    @text='helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld'
+    @lines={{1}}
+    @showLessButton={{false}}
+  />
+</div>
+
+<button {{on 'click' this.toggleTruncate}}>toggleTruncate</button>
+
+<div
+  id='test-container'
+  style='width: 250px; font-size: 16px; font-family: sans-serif;'
+>
+  <LineClamp
+    @text='helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld'
+    @lines={{1}}
+    @truncate={{this.truncate}}
+  />
+</div>
+
+<div
+  id='test-container'
+  style='width: 250px; font-size: 16px; font-family: sans-serif;'
+>
+  <LineClamp
+    @text='helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld'
+    @lines={{1}}
+    @truncate={{this.notTruncate}}
+  />
+</div>
+
+<LineClamp
+  @text={{this.model.textWithHTMLNewLine}}
+  @lines={{1}}
+  @stripText={{false}}
+/>
+
+<LineClamp
+  @text={{this.model.textWithHTMLNewLine}}
+  @lines={{1}}
+  @stripText={{true}}
+/>
+
+<LineClamp
+  @text={{this.model.text}}
+  @lines={{1}}
+  @onExpand={{fn this.runFunction 'expand'}}
+  @onCollapse={{fn this.runFunction 'collapse'}}
+/>
+
+<div
+  id='test-container'
+  style='width: 300px; font-size: 16px; font-family: sans-serif;'
+>
+  <LineClamp
+    @text='helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld'
+    @lines={{1}}
+    @onExpand={{this.runFunction}}
+    @onCollapse={{this.runFunction}}
+  />
+</div>
+
+<ul>
+  {{#each this_calls as |call|}}
+    <li>{{call}}</li>
+  {{/each}}
+</ul>
 
 {{outlet}}

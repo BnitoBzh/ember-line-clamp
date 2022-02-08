@@ -1,547 +1,777 @@
-import { hbs } from 'ember-cli-htmlbars';
-import { htmlSafe } from '@ember/string';
 import { module, test, skip } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { render, click } from '@ember/test-helpers';
+import hbs from 'htmlbars-inline-precompile';
+import { htmlSafe } from '@ember/template';
 
-module('Integration | Component | line clamp', function(hooks) {
+module('Integration | Component | line clamp', function (hooks) {
   setupRenderingTest(hooks);
 
-  test('inline form works as expected', async function(assert) {
-    await render(hbs`<div style="width: 300px; font-size: 16px; font-family: sans-serif;">
-      {{line-clamp
-        text="helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld"
-      }}
-    </div>`);
+  test('inline form works as expected', async function (assert) {
+    assert.expect(18);
 
-    const element = this.element;
-    const lines = Array.from(element.querySelectorAll('.lt-line-clamp__line'));
-    const lastLine = lines[lines.length - 1];
-    const lastLineChildren = lastLine.children;
-    const ellipsisElement = lastLineChildren[0];
-    const seeMoreButton = ellipsisElement.children[1];
-    const dummyEllipsis = element.querySelectorAll('.lt-line-clamp--dummy');
+    await render(hbs`
+      {{!-- template-lint-disable no-inline-styles --}}
+      <div style="width: 300px; font-size: 16px; font-family: sans-serif;">
+        <LineClamp @text="helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld" />
+      </div>
+    `);
 
-    assert.ok(
-      element,
-      'line clamp target exists'
-    );
+    assert.ok(this.element, 'line clamp target exists');
+    assert
+      .dom('[data-test-line-clamp-line]')
+      .exists({ count: 3 }, 'text is clamped at 3 lines (default)');
 
-    assert.equal(
-      lines.length,
-      3,
-      'text is clamped at 3 lines (default)'
-    );
+    assert
+      .dom('[data-test-line-clamp-line]:first-child')
+      .hasText('helloworld helloworld');
+    assert
+      .dom('[data-test-line-clamp-line]:nth-child(2)')
+      .hasText('helloworld helloworld');
+    assert
+      .dom('[data-test-line-clamp-last-line]')
+      .hasClass(
+        'lt-line-clamp__line--last',
+        'lt-line-clamp__line--last is applied to last line'
+      );
+    assert
+      .dom('[data-test-line-clamp-last-line]')
+      .hasClass(
+        'lt-line-clamp__line--last',
+        'lt-line-clamp__line--last is applied to last line'
+      );
 
-    // This test a bit flaky, depends on the width of div and knowing 'helloworld helloworld' will be a line
-    // assert.ok(
-    //   lines.slice(0,2)
-    //     .every((line) => line.innerText.trim() === 'helloworld helloworld'),
-    //   'first lines contain expected text'
-    // );
+    assert
+      .dom('[data-test-line-clamp-last-line] > *')
+      .exists('last line contains 1 child');
 
-    // This is a better test since we know the truncation will push 'helloworld' to a new line if it does not fit
-    assert.ok(
-      lines.slice(0,2)
-        .every((line) => line.innerText.trim().split(' ')[0] === 'helloworld'),
-      'first lines contain expected text'
-    );
+    assert
+      .dom('[data-test-line-clamp-last-line] > [data-test-line-clamp-ellipsis]')
+      .exists('last line child is the ellipsis element and it exists')
+      .hasClass(
+        'lt-line-clamp__ellipsis',
+        'ellipsis element contains right CSS class'
+      )
+      .hasText(
+        '... See More',
+        'Ellipsis element contains expetend ellipsis and see more text'
+      );
 
-    assert.ok(
-      lastLine.classList.contains('lt-line-clamp__line--last'),
-      'lt-line-clamp__line--last is applied to last line'
-    );
+    assert
+      .dom('[data-test-line-clamp-show-more]')
+      .exists('see more button exists')
+      .hasClass(
+        'lt-line-clamp__more',
+        'see more button contains right CSS class'
+      )
+      .hasText('See More', 'see more button contains expected text');
 
-    assert.equal(
-      lastLineChildren.length,
-      1,
-      'last line contains 1 child'
-    );
+    assert
+      .dom('[data-test-line-clamp-dummy-ellipsis]')
+      .exists('dummy ellipsis element exists')
+      .hasText('...');
 
-    assert.ok(
-      ellipsisElement,
-      'last line child is the ellipsis element and it exists'
-    );
+    await click('[data-test-line-clamp-show-more]');
 
-    assert.ok(
-      ellipsisElement.classList.contains('lt-line-clamp__ellipsis'),
-      'ellipsis element contains right CSS class'
-    );
-
-    assert.dom(ellipsisElement).hasText('... See More', 'Ellipsis element contains expetend ellipsis and see more text');
-
-    assert.ok(
-      seeMoreButton,
-      'see more button exists'
-    );
-
-    assert.ok(
-      seeMoreButton.classList.contains('lt-line-clamp__more'),
-      'see more button contains right CSS class'
-    );
-
-    assert.equal(
-      seeMoreButton.innerText,
-      'See More',
-      'see more button contains expected text'
-    );
-
-    assert.ok(
-      dummyEllipsis,
-      'dummy ellipsis element exists'
-    );
-
-    assert.dom(element).containsText('... See More');
-
-    await click(seeMoreButton);
-
-    const seeLessButton = element.querySelectorAll('.lt-line-clamp__less')[0];
-
-    assert.ok(
-      seeLessButton,
-      'see less button exists'
-    );
-
-    assert.dom(element).containsText('See Less');
+    assert.dom('[data-test-line-clamp-show-less]').exists().hasText('See Less');
+    assert.dom('[data-test-line-clamp-show-more]').doesNotExist();
   });
 
-  test('lines attribute works as expected', async function(assert) {
+  test('lines attribute works as expected', async function (assert) {
+    assert.expect(5);
+
     // Render component
-    await render(hbs`<div style="width: 300px; font-size: 16px; font-family: sans-serif;">
-      {{line-clamp
-        text="helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld"
-        lines=2
-      }}
-    </div>`);
+    await render(hbs`
+      {{!-- template-lint-disable no-inline-styles --}}
+      <div style="width: 300px; font-size: 16px; font-family: sans-serif;">
+        <LineClamp @text="helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld"
+          @lines={{2}} />
+      </div>
+    `);
 
-    const element = this.element;
-    const lines = Array.from(element.querySelectorAll('.lt-line-clamp__line'));
-    const lastLine = lines[lines.length - 1];
+    assert.ok(this.element, 'line clamp target exists');
+    assert
+      .dom('[data-test-line-clamp-line]')
+      .exists({ count: 2 }, 'text is clamped at 2 lines specified by user');
 
-    assert.ok(
-      element,
-      'line clamp target exists'
-    );
+    assert
+      .dom('[data-test-line-clamp-line]:first-child')
+      .hasText('helloworld helloworld', 'first lines contain expected text');
 
-    assert.equal(
-      lines.length,
-      2,
-      'text is clamped at 2 lines specified by user'
-    );
+    assert
+      .dom('[data-test-line-clamp-line]:nth-child(2)')
+      .hasClass(
+        'lt-line-clamp__line--last',
+        'lt-line-clamp__line--last is applied to last line'
+      );
 
-    assert.ok(
-      lines.slice(0,1)
-        .every((line) => line.innerText.trim().split(' ')[0] === 'helloworld'),
-      'first lines contain expected text'
-    );
-
-    assert.ok(
-      lastLine.classList.contains('lt-line-clamp__line--last'),
-      'lt-line-clamp__line--last is applied to last line'
-    );
-
-    assert.dom(element).containsText('... See More');
-
+    assert.dom(this.element).containsText('... See More');
   });
 
-  test('ellipsis attribute works as expected', async function(assert) {
+  test('ellipsis attribute works as expected', async function (assert) {
+    assert.expect(4);
+
     // Render component
-    await render(hbs`<div style="width: 300px; font-size: 16px; font-family: sans-serif;">
-      {{line-clamp
-        text="helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld"
-        ellipsis="-"
-      }}
-    </div>`);
+    await render(hbs`
+      {{!-- template-lint-disable no-inline-styles --}}
+      <div style="width: 300px; font-size: 16px; font-family: sans-serif;">
+        <LineClamp @text="helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld"
+          @ellipsis="-" />
+      </div>
+    `);
 
-    const element = this.element;
-    const lines = Array.from(element.querySelectorAll('.lt-line-clamp__line'));
-    const lastLine = lines[lines.length - 1];
-    const lastLineChildren = lastLine.children;
-    const ellipsisElement = lastLineChildren[0];
+    assert.ok(this.element, 'line clamp target exists');
 
-    assert.ok(
-      element,
-      'line clamp target exists'
-    );
+    assert
+      .dom('[data-test-line-clamp-ellipsis]')
+      .exists()
+      .hasText('- See More');
 
-    assert.dom(ellipsisElement).hasText('- See More');
-    assert.dom(element).containsText('- See More');
+    assert.dom(this.element).containsText('- See More');
   });
 
-  test('interactive=false hides see more button', async function(assert) {
+  test('interactive=false hides see more button', async function (assert) {
+    assert.expect(5);
+
     // Render component
-    await render(hbs`<div style="width: 300px; font-size: 16px; font-family: sans-serif;">
-      {{line-clamp
-        text="helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld"
-        interactive=false
-      }}
-    </div>`);
+    await render(hbs`
+      {{!-- template-lint-disable no-inline-styles --}}
+      <div style="width: 300px; font-size: 16px; font-family: sans-serif;">
+        <LineClamp @text="helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld"
+          @interactive={{false}} />
+      </div>
+    `);
 
     // We are running in headless chrome - it supports -webkit-line-clamp
-    const element = this.element;
-    const lineClampElement = element.querySelectorAll('.lt-line-clamp');
-    const lines = Array.from(element.querySelectorAll('.lt-line-clamp__line'));
 
-    assert.ok(
-      element,
-      'line clamp target exists'
-    );
+    assert.ok(this.element, 'line clamp target exists');
 
-    assert.equal(
-      lineClampElement.length,
-      1,
-      'element fallbacks to -webkit-line-clamp'
-    );
+    assert
+      .dom(this.element)
+      .hasText(
+        'helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld'
+      );
 
-    assert.equal(
-      lines.length,
-      0,
-      'No truncation happen, we use -webkit-line-clamp'
-    );
+    assert
+      .dom('[data-test-line-clamp]')
+      .exists()
+      .hasStyle(
+        { '-webkit-line-clamp': '3' },
+        'element fallbacks to -webkit-line-clamp'
+      );
 
-    assert.equal(
-      element.innerText.trim(),
-      'helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld'
-    );
+    assert
+      .dom('[data-test-line-clamp-line]')
+      .doesNotExist('No truncation happen, we use -webkit-line-clamp');
   });
 
-  test('useJsOnly=true disables native CSS solution', async function(assert) {
+  test('useJsOnly=true disables native CSS solution', async function (assert) {
+    assert.expect(5);
+
     // Render component
-    await render(hbs`<div style="width: 300px; font-size: 16px; font-family: sans-serif;">
-      {{line-clamp
-        text="helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld"
-        interactive=false
-        useJsOnly=true
-      }}
-    </div>`);
+    await render(hbs`
+      {{!-- template-lint-disable no-inline-styles --}}
+      <div style="width: 300px; font-size: 16px; font-family: sans-serif;">
+        <LineClamp @text="helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld"
+          @interactive={{false}} @useJsOnly={{true}} />
+      </div>
+    `);
 
     // We are running in headless chrome - it supports -webkit-line-clamp
-    const element = this.element;
-    const lineClampElement = element.querySelectorAll('.lt-line-clamp');
-    const lines = Array.from(element.querySelectorAll('.lt-line-clamp__line'));
 
-    assert.ok(
-      element,
-      'line clamp target exists'
-    );
+    assert.ok(this.element, 'line clamp target exists');
 
-    assert.equal(
-      lineClampElement.length,
-      0,
-      'element fallbacks to -webkit-line-clamp'
-    );
+    assert
+      .dom('[data-test-line-clamp]')
+      .exists()
+      .hasStyle(
+        { '-webkit-line-clamp': 'none' },
+        'element fallbacks to -webkit-line-clamp'
+      );
 
-    assert.equal(
-      lines.length,
-      3,
-      'No truncation happen, we use -webkit-line-clamp'
-    );
+    assert
+      .dom('[data-test-line-clamp-line]')
+      .exists({ count: 3 }, 'No truncation happen, we use -webkit-line-clamp');
 
-    assert.dom(element).containsText('...');
+    assert.dom(this.element).containsText('...');
   });
 
-  test('showMoreButton=false hides see more button', async function(assert) {
+  test('showMoreButton=false hides see more button', async function (assert) {
+    assert.expect(6);
+
     // Render component
-    await render(hbs`<div style="width: 300px; font-size: 16px; font-family: sans-serif;">
-      {{line-clamp
-        text="helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld"
-        showMoreButton=false
-      }}
-    </div>`);
+    await render(hbs`
+      {{!-- template-lint-disable no-inline-styles --}}
+      <div style="width: 300px; font-size: 16px; font-family: sans-serif;">
+        <LineClamp @text="helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld"
+          @lines={{2}} @showMoreButton={{false}} />
+      </div>
+    `);
 
     // We are running in headless chrome - it supports -webkit-line-clamp
-    const element = this.element;
-    const lineClampElement = element.querySelectorAll('.lt-line-clamp');
-    const lines = Array.from(element.querySelectorAll('.lt-line-clamp__line'));
 
-    assert.ok(
-      element,
-      'line clamp target exists'
+    assert.ok(this.element, 'line clamp target exists');
+
+    assert
+      .dom('[data-test-line-clamp-line]')
+      .doesNotExist('No truncation happen, we use -webkit-line-clamp');
+
+    assert
+      .dom('[data-test-line-clamp]')
+      .exists()
+      .hasStyle(
+        { '-webkit-line-clamp': '2' },
+        'element fallbacks to -webkit-line-clamp'
+      );
+
+    assert
+      .dom(this.element)
+      .containsText(
+        'helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld'
+      );
+
+    assert.dom('[data-test-line-clamp-show-more]').doesNotExist();
+  });
+
+  test('showLessButton=false hides see less button', async function (assert) {
+    assert.expect(5);
+
+    // Render component
+    await render(hbs`
+      {{!-- template-lint-disable no-inline-styles --}}
+      <div style="width: 300px; font-size: 16px; font-family: sans-serif;">
+        <LineClamp @text="helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld"
+          @lines={{2}} @showLessButton={{false}} />
+      </div>
+    `);
+
+    assert.ok(this.element, 'line clamp target exists');
+
+    assert
+      .dom('[data-test-line-clamp-show-more]')
+      .exists('see more button exists');
+
+    await click('[data-test-line-clamp-show-more]');
+
+    assert.dom('[data-test-line-clamp-show-more]').doesNotExist();
+    assert.dom('[data-test-line-clamp-show-less]').doesNotExist();
+
+    assert
+      .dom('[data-test-line-clamp-raw]')
+      .hasText(
+        'helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld'
+      );
+  });
+
+  test('seeMoreText and seeLessText attributes work as expected', async function (assert) {
+    assert.expect(11);
+
+    // Render component
+    await render(hbs`
+      {{!-- template-lint-disable no-inline-styles --}}
+      <div style="width: 300px; font-size: 16px; font-family: sans-serif;">
+        <LineClamp @text="helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld"
+          @seeMoreText="Read More" @seeLessText="Read Less" />
+      </div>
+    `);
+
+    assert.ok(this.element, 'line clamp target exists');
+
+    assert
+      .dom('[data-test-line-clamp-ellipsis]')
+      .exists('last line child is the ellipsis element and it exists');
+
+    assert
+      .dom('[data-test-line-clamp-show-more]')
+      .exists('see more button exists')
+      .hasText('Read More', 'see more button contains expected text')
+      .doesNotHaveAttribute(
+        'aria-label',
+        'see more button does not set aria-label by default'
+      );
+
+    assert.dom(this.element).containsText('... Read More');
+
+    await click('[data-test-line-clamp-show-more]');
+
+    assert.dom('[data-test-line-clamp-show-more]').doesNotExist();
+    assert
+      .dom('[data-test-line-clamp-show-less]')
+      .exists('see less button exists')
+      .hasText('Read Less', 'see less button contains expected text')
+      .doesNotHaveAttribute(
+        'aria-label',
+        'see less button does not set aria-label by default'
+      );
+
+    assert.dom(this.element).containsText(' Read Less');
+  });
+
+  test('seeMoreA11yText and seeLessA11yText attributes work as expected', async function (assert) {
+    assert.expect(11);
+
+    // Render component
+    await render(hbs`
+      {{!-- template-lint-disable no-inline-styles --}}
+      <div style="width: 300px; font-size: 16px; font-family: sans-serif;">
+        <LineClamp @text="helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld"
+          @seeMoreText="Read More" @seeMoreA11yText="A button which expands the content of this text" @seeLessText="Read Less"
+          @seeLessA11yText="A button which unexpands the content of this text" />
+      </div>
+    `);
+
+    assert.ok(this.element, 'line clamp target exists');
+
+    assert
+      .dom('[data-test-line-clamp-ellipsis]')
+      .exists('last line child is the ellipsis element and it exists');
+
+    assert
+      .dom('[data-test-line-clamp-show-more]')
+      .exists('see more button exists')
+      .hasText('Read More', 'see more button contains expected text')
+      .hasAttribute(
+        'aria-label',
+        'A button which expands the content of this text',
+        'see more button sets aria-label if provided'
+      );
+
+    assert.dom(this.element).containsText('... Read More');
+
+    await click('[data-test-line-clamp-show-more]');
+
+    assert.dom('[data-test-line-clamp-show-more]').doesNotExist();
+    assert
+      .dom('[data-test-line-clamp-show-less]')
+      .exists('see less button exists')
+      .hasText('Read Less', 'see less button contains expected text')
+      .hasAttribute(
+        'aria-label',
+        'A button which unexpands the content of this text',
+        'see less button sets aria-label if provided'
+      );
+
+    assert.dom(this.element).containsText(' Read Less');
+  });
+
+  test('see more button is hidden if text is not long enough to truncate', async function (assert) {
+    assert.expect(3);
+
+    // Render component
+    await render(hbs`
+      {{!-- template-lint-disable no-inline-styles --}}
+      <div style="width: 300px; font-size: 16px; font-family: sans-serif;">
+        <LineClamp @text="helloworld helloworld" />
+      </div>
+    `);
+
+    assert.ok(this.element, 'line clamp target exists');
+
+    assert
+      .dom('[data-test-line-clamp-show-more]')
+      .doesNotExist('see more button is not needed');
+
+    assert.dom(this.element).containsText('helloworld helloworld');
+  });
+
+  test('clicking see more button toggles full text', async function (assert) {
+    assert.expect(4);
+
+    // Render component
+    await render(hbs`
+      {{!-- template-lint-disable no-inline-styles --}}
+      <div style="width: 300px; font-size: 16px; font-family: sans-serif;">
+        <LineClamp @text="helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld" />
+      </div>
+    `);
+
+    assert.ok(this.element, 'line clamp target exists');
+
+    assert
+      .dom('[data-test-line-clamp-show-more]')
+      .exists('see more button exists');
+
+    assert.dom(this.element).containsText('... See More');
+
+    await click('[data-test-line-clamp-show-more]');
+
+    assert
+      .dom(this.element)
+      .containsText(
+        'helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld See Less'
+      );
+  });
+
+  test('clicking see more/see less button fires user defined action', async function (assert) {
+    assert.expect(6);
+
+    this.set('assertOnExpand', function () {
+      assert.ok(true, 'onExpand action triggered');
+    });
+    this.set('assertOnCollapse', function () {
+      assert.ok(true, 'onCollapse action triggered');
+    });
+
+    // Render component
+    await render(hbs`
+      {{!-- template-lint-disable no-inline-styles --}}
+      <div id="test-container" style="width: 300px; font-size: 16px; font-family: sans-serif;">
+        <LineClamp @text="helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld"
+          @lines={{1}} @onExpand={{this.assertOnExpand}} @onCollapse={{this.assertOnCollapse}} />
+      </div>
+    `);
+
+    assert.ok(this.element, 'line clamp target exists');
+
+    assert
+      .dom('[data-test-line-clamp-show-more]')
+      .exists('see more button exists');
+
+    await click('[data-test-line-clamp-show-more]');
+
+    assert
+      .dom('[data-test-line-clamp-show-less]')
+      .exists('see less button exists');
+
+    await click('[data-test-line-clamp-show-less]');
+
+    assert
+      .dom('[data-test-line-clamp-show-more]')
+      .exists('see more button exists');
+  });
+
+  test('clicking see more/see less buttons should not bubble event', async function (assert) {
+    assert.expect(4);
+
+    this.set('assertOnParentClick', () =>
+      assert.ok(true, 'parent click action should not be triggered')
     );
 
-    assert.equal(
-      lines.length,
-      0,
-      'No truncation happen, we use -webkit-line-clamp'
-    );
+    // Render component
+    await render(hbs`
+      {{!-- template-lint-disable no-inline-styles no-invalid-interactive --}}
+      <div id="test-container" style="width: 300px; font-size: 16px; font-family: sans-serif;" {{on 'click'
+        this.assertOnParentClick}}>
+        <LineClamp @text="helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld" />
+      </div>
+    `);
 
-    assert.equal(
-      lineClampElement.length,
-      1,
-      'element fallbacks to -webkit-line-clamp'
-    );
+    assert.ok(this.element, 'line clamp target exists');
 
-    assert.equal(
-      element.innerText.trim(),
+    assert
+      .dom('[data-test-line-clamp-show-more]')
+      .exists('see more button exists');
+
+    await click('[data-test-line-clamp-show-more]');
+
+    assert
+      .dom('[data-test-line-clamp-show-less]')
+      .exists('see less button exists');
+
+    await click('[data-test-line-clamp-show-less]');
+
+    assert
+      .dom('[data-test-line-clamp-show-more]')
+      .exists('see more button exists');
+  });
+
+  test("changing the component's text changes the component", async function (assert) {
+    assert.expect(2);
+
+    this.set(
+      'textToTruncate',
       'helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld'
     );
+
+    // Render component
+    await render(hbs`
+      {{!-- template-lint-disable no-inline-styles --}}
+      <div id="test-container" style="width: 300px; font-size: 16px; font-family: sans-serif;">
+        <LineClamp @text={{this.textToTruncate}} />
+      </div>
+    `);
+
+    assert
+      .dom('[data-test-line-clamp-show-more]')
+      .exists('see more button exists');
+
+    this.set('textToTruncate', 'helloworld helloworld helloworld helloworld');
+
+    assert
+      .dom('[data-test-line-clamp-show-more]')
+      .doesNotExist('see more button exists');
   });
 
-  test('showLessButton=false hides see less button', async function(assert) {
-    // Render component
-    await render(hbs`<div style="width: 300px; font-size: 16px; font-family: sans-serif;">
-      {{line-clamp
-        text="helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld"
-        showLessButton=false
-      }}
-    </div>`);
+  test("changing the component's lines changes the component", async function (assert) {
+    assert.expect(4);
 
-    const element = this.element;
-    const lines = Array.from(element.querySelectorAll('.lt-line-clamp__line'));
-    const lastLine = lines[lines.length - 1];
-    const lastLineChildren = lastLine.children;
-    const ellipsisElement = lastLineChildren[0];
-    const seeMoreButton = ellipsisElement.children[1];
-
-    assert.ok(
-      element,
-      'line clamp target exists'
-    );
-
-    assert.ok(
-      seeMoreButton,
-      'see more button exists'
-    );
-
-    await click(seeMoreButton);
-
-    const seeLessButton = element.querySelectorAll('.lt-line-clamp__less');
-
-    assert.equal(
-      seeLessButton.length,
-      0,
-      'see less button does not exist'
-    );
-
-    assert.equal(
-      element.innerText.trim(),
+    this.set(
+      'textToTruncate',
       'helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld'
     );
-  });
+    this.set('linesToTruncate', 3);
 
-  test('seeMoreText and seeLessText attributes work as expected', async function(assert) {
-    await render(hbs`<div style="width: 300px; font-size: 16px; font-family: sans-serif;">
-      {{line-clamp
-        text="helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld"
-        seeMoreText="Read More"
-        seeLessText="Read Less"
-      }}
-    </div>`);
-
-    const element = this.element;
-    const lines = Array.from(element.querySelectorAll('.lt-line-clamp__line'));
-    const lastLine = lines[lines.length - 1];
-    const lastLineChildren = lastLine.children;
-    const ellipsisElement = lastLineChildren[0];
-    const seeMoreButton = ellipsisElement.children[1];
-
-    assert.ok(
-      element,
-      'line clamp target exists'
-    );
-
-    assert.ok(
-      ellipsisElement,
-      'last line child is the ellipsis element and it exists'
-    );
-
-    assert.ok(
-      seeMoreButton,
-      'see more button exists'
-    );
-
-    assert.equal(
-      seeMoreButton.innerText,
-      'Read More',
-      'see more button contains expected text'
-    );
-
-    assert.dom(seeMoreButton).doesNotHaveAttribute('aria-label', 'see more button does not set aria-label by default');
-
-    assert.dom(element).containsText('... Read More');
-
-    await click(seeMoreButton);
-
-    const seeLessButton = element.querySelectorAll('.lt-line-clamp__less')[0];
-
-    assert.ok(
-      seeLessButton,
-      'see less button exists'
-    );
-
-    assert.equal(
-      seeLessButton.innerText,
-      'Read Less',
-      'see less button contains expected text'
-    );
-
-    assert.dom(seeLessButton).doesNotHaveAttribute('aria-label', 'see less button does not set aria-label by default');
-
-    assert.equal(
-      element.innerText.trim(),
-      'helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld Read Less'
-    );
-  });
-
-  test('seeMoreA11yText and seeLessA11yText attributes work as expected', async function(assert) {
-    await render(hbs`<div style="width: 300px; font-size: 16px; font-family: sans-serif;">
-      {{line-clamp
-        text="helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld"
-        seeMoreText="Read More"
-        seeMoreA11yText="A button which expands the content of this text"
-        seeLessText="Read Less"
-        seeLessA11yText="A button which unexpands the content of this text"
-      }}
-    </div>`);
-
-    const element = this.element;
-    const lines = Array.from(element.querySelectorAll('.lt-line-clamp__line'));
-    const lastLine = lines[lines.length - 1];
-    const lastLineChildren = lastLine.children;
-    const ellipsisElement = lastLineChildren[0];
-    const seeMoreButton = ellipsisElement.children[1];
-
-    assert.ok(
-      element,
-      'line clamp target exists'
-    );
-
-    assert.ok(
-      ellipsisElement,
-      'last line child is the ellipsis element and it exists'
-    );
-
-    assert.ok(
-      seeMoreButton,
-      'see more button exists'
-    );
-
-    assert.equal(
-      seeMoreButton.innerText,
-      'Read More',
-      'see more button contains expected text'
-    );
-
-    assert.dom(seeMoreButton).hasAttribute('aria-label', 'A button which expands the content of this text', 'see more button sets aria-label if provided');
-
-    assert.dom(element).containsText('... Read More');
-
-    await click(seeMoreButton);
-
-    const seeLessButton = element.querySelectorAll('.lt-line-clamp__less')[0];
-
-    assert.ok(
-      seeLessButton,
-      'see less button exists'
-    );
-
-    assert.equal(
-      seeLessButton.innerText,
-      'Read Less',
-      'see less button contains expected text'
-    );
-
-    assert.dom(seeLessButton).hasAttribute('aria-label', 'A button which unexpands the content of this text', 'see less button sets aria-label if provided');
-
-    assert.equal(
-      element.innerText.trim(),
-      'helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld Read Less'
-    );
-  });
-
-  test('see more button is hidden if text is not long enough to truncate', async function(assert) {
     // Render component
-    await render(hbs`<div style="width: 300px; font-size: 16px; font-family: sans-serif;">
-      {{line-clamp
-        text="helloworld helloworld"
-      }}
-    </div>`);
+    await render(hbs`
+      {{!-- template-lint-disable no-inline-styles --}}
+      <div id="test-container" style="width: 300px; font-size: 16px; font-family: sans-serif;">
+        <LineClamp @text={{this.textToTruncate}} @lines={{this.linesToTruncate}} />
+      </div>
+    `);
 
-    const element = this.element;
-    const seeMoreButton = element.querySelectorAll('.lt-line-clamp__line .lt-line-clamp__more');
+    assert.dom('[data-test-line-clamp-line]').exists({ count: 3 });
+    assert
+      .dom('[data-test-line-clamp-show-more]')
+      .exists('see more button exists');
 
-    assert.ok(
-      element,
-      'line clamp target exists'
+    this.set('linesToTruncate', 2);
+
+    assert.dom('[data-test-line-clamp-line]').exists({ count: 2 });
+    assert
+      .dom('[data-test-line-clamp-show-more]')
+      .exists('see more button exists');
+  });
+
+  test('truncation can be controlled via the truncate attribute', async function (assert) {
+    assert.expect(3);
+
+    this.set(
+      'textToTruncate',
+      'helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld'
+    );
+    this.set('truncate', true);
+
+    // Render component
+    await render(hbs`
+      {{!-- template-lint-disable no-inline-styles --}}
+      <div id="test-container" style="width: 300px; font-size: 16px; font-family: sans-serif;">
+        <LineClamp @text={{this.textToTruncate}} @truncate={{this.truncate}} />
+      </div>
+    `);
+
+    assert
+      .dom('[data-test-line-clamp-show-more]')
+      .exists('see more button exists');
+
+    this.set('truncate', false);
+
+    assert
+      .dom('[data-test-line-clamp-show-less]')
+      .exists('see less button exists');
+
+    this.set('truncate', true);
+
+    assert
+      .dom('[data-test-line-clamp-show-more]')
+      .exists('see more button exists');
+  });
+
+  test('initial truncation can be controlled via the truncate attribute (false case)', async function (assert) {
+    assert.expect(3);
+
+    this.set(
+      'textToTruncate',
+      'helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld'
+    );
+    this.set('truncate', false);
+
+    // Render component
+    await render(hbs`
+      {{!-- template-lint-disable no-inline-styles --}}
+      <div id="test-container" style="width: 300px; font-size: 16px; font-family: sans-serif;">
+        <LineClamp @text={{this.textToTruncate}} @truncate={{this.truncate}} />
+      </div>
+    `);
+
+    assert
+      .dom('[data-test-line-clamp-show-less]')
+      .exists('see less button exists');
+
+    this.set('truncate', true);
+
+    assert
+      .dom('[data-test-line-clamp-show-more]')
+      .exists('see more button exists');
+
+    this.set('truncate', false);
+
+    assert
+      .dom('[data-test-line-clamp-show-less]')
+      .exists('see less button exists');
+  });
+
+  test('stripText correctly strips <br> tags', async function (assert) {
+    assert.expect(2);
+
+    this.set(
+      'textToTruncate',
+      htmlSafe('helloworld<br />helloworld<br />helloworld<br />helloworld')
+    );
+    this.set('truncate', true);
+    this.set('stripText', true);
+
+    // Render component
+    await render(hbs`
+      {{!-- template-lint-disable no-inline-styles --}}
+      <div id="test-container" style="width: 300px; font-size: 16px; font-family: sans-serif;">
+        <LineClamp @text={{this.textToTruncate}} @truncate={{this.truncate}} @stripText={{this.stripText}} />
+      </div>
+    `);
+
+    assert.strictEqual(
+      this.element.innerText.trim(),
+      'helloworld helloworld helloworld helloworld'
     );
 
-    assert.equal(
-      seeMoreButton.length,
-      0,
-      'see more button is not needed'
-    );
+    this.set('truncate', false);
 
-    assert.equal(
-      element.innerText.trim(),
-      'helloworld helloworld'
+    assert.strictEqual(
+      this.element.innerText.trim(),
+      `helloworld\nhelloworld\nhelloworld\nhelloworld See Less`
     );
   });
 
-  test('clicking see more button toggles full text', async function(assert) {
-    await render(hbs`<div style="width: 300px; font-size: 16px; font-family: sans-serif;">
-      {{line-clamp
-        text="helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld"
-      }}
-    </div>`);
+  test('stripText correctly strips preserves newlines when stripText is false', async function (assert) {
+    assert.expect(2);
+
+    this.set(
+      'textToTruncate',
+      htmlSafe('helloworld<br />helloworld<br />helloworld<br />helloworld')
+    );
+    this.set('truncate', true);
+    this.set('stripText', false);
+
+    // Render component
+    await render(hbs`
+      {{!-- template-lint-disable no-inline-styles --}}
+      <div id="test-container" style="width: 300px; font-size: 16px; font-family: sans-serif;">
+        <LineClamp @text={{this.textToTruncate}} @truncate={{this.truncate}} @stripText={{this.stripText}} />
+      </div>
+    `);
 
     const element = this.element;
-    const lines = Array.from(element.querySelectorAll('.lt-line-clamp__line'));
-    const lastLine = lines[lines.length - 1];
-    const lastLineChildren = lastLine.children;
-    const ellipsisElement = lastLineChildren[0];
-    const seeMoreButton = ellipsisElement.children[1];
-
-    assert.ok(
-      element,
-      'line clamp target exists'
-    );
-
-    assert.ok(
-      seeMoreButton,
-      'see more button exists'
-    );
-
     assert.dom(element).containsText('... See More');
 
-    await click(seeMoreButton);
+    this.set('truncate', false);
 
-    assert.dom(element).containsText('helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld See Less');
+    assert.strictEqual(
+      element.innerText.trim(),
+      'helloworld\nhelloworld\nhelloworld\nhelloworld See Less'
+    );
   });
 
-  skip('resizing triggers component to re-truncate', async function(assert) {
+  test('null/undefined text handled correctly', async function (assert) {
+    assert.expect(2);
+
+    this.set('textToTruncate', null);
+    this.set('truncate', true);
+
+    // Render component
+    await render(
+      hbs`<LineClamp @text={{this.textToTruncate}} @truncate={{this.truncate}} />`
+    );
+
+    const element = this.element;
+    assert.strictEqual(element.innerText.trim(), '');
+
+    this.set('textToTruncate', undefined);
+
+    assert.strictEqual(element.innerText.trim(), '');
+  });
+
+  test('[A11y] aria-expanded is correct', async function (assert) {
+    assert.expect(3);
+
+    // Render component
+    await render(hbs`
+      {{!-- template-lint-disable no-inline-styles --}}
+      <div style="width: 300px; font-size: 16px; font-family: sans-serif;">
+        <LineClamp @text="helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld"
+          @lines={{1}} />
+      </div>
+    `);
+
+    assert
+      .dom('[data-test-line-clamp-show-more]')
+      .hasAttribute('aria-expanded', 'false');
+
+    await click('[data-test-line-clamp-show-more]');
+
+    assert
+      .dom('[data-test-line-clamp-show-less]')
+      .hasAttribute('aria-expanded', 'true');
+
+    await click('[data-test-line-clamp-show-less]');
+
+    assert
+      .dom('[data-test-line-clamp-show-more]')
+      .hasAttribute('aria-expanded', 'false');
+  });
+
+  test('[A11y] button is correctly focused after expanding/collapsing', async function (assert) {
+    assert.expect(2);
+
+    // Render component
+    await render(hbs`
+      {{!-- template-lint-disable no-inline-styles --}}
+      <div style="width: 300px; font-size: 16px; font-family: sans-serif;">
+        <LineClamp @text="helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld"
+          @lines={{1}} />
+      </div>
+    `);
+
+    await click('[data-test-line-clamp-show-more]');
+
+    assert
+      .dom('[data-test-line-clamp-show-less]')
+      .isFocused('show less button is focused');
+
+    await click('[data-test-line-clamp-show-less]');
+
+    assert
+      .dom('[data-test-line-clamp-show-more]')
+      .isFocused('show more button is focused');
+  });
+
+  skip('resizing triggers component to re-truncate', async function (assert) {
     assert.expect(4);
     const done = assert.async();
 
-    await render(hbs`<div id="test-conatiner" style="width: 300px; font-size: 16px; font-family: sans-serif;">
-      {{line-clamp
-        text="helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld"
-      }}
-    </div>`);
+    // Render component
+    await render(hbs`
+      {{!-- template-lint-disable no-inline-styles --}}
+      <div id="test-container" style="width: 300px; font-size: 16px; font-family: sans-serif;">
+        <LineClamp @text="helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld"
+          @seeMoreText="Read More" @seeMoreA11yText="A button which expands the content of this text" @seeLessText="Read Less"
+          @seeLessA11yText="A button which unexpands the content of this text" />
+      </div>
+    `);
 
     const element = this.element;
-    const seeMoreButtonBeforeResize = element.querySelectorAll('.lt-line-clamp__line .lt-line-clamp__more');
-
-    assert.ok(
-      element,
-      'line clamp target exists'
+    const seeMoreButtonBeforeResize = element.querySelectorAll(
+      '.lt-line-clamp__line .lt-line-clamp__more'
     );
 
-    assert.equal(
+    assert.ok(element, 'line clamp target exists');
+
+    assert.strictEqual(
       seeMoreButtonBeforeResize.length,
       1,
       'see more button exists'
     );
 
-    assert.dom(element).containsText('... See More')
+    assert.dom(element).containsText('... See More');
 
     // Mimic window resize
-    element.querySelector('#test-conatiner').style.width = '960px';
+    element.querySelector('#test-container').style.width = '960px';
     window.dispatchEvent(new CustomEvent('resize'));
 
     setTimeout(() => {
-      const seeMoreButtonAfterResize = element.querySelectorAll('.lt-line-clamp__line .lt-line-clamp__more');
+      const seeMoreButtonAfterResize = element.querySelectorAll(
+        '.lt-line-clamp__line .lt-line-clamp__more'
+      );
 
-      assert.equal(
+      assert.strictEqual(
         seeMoreButtonAfterResize.length,
         0,
         'see more button does not exist'
@@ -551,318 +781,15 @@ module('Integration | Component | line clamp', function(hooks) {
     }, 10);
     // const seeMoreButtonAfterResize = element.querySelectorAll('.lt-line-clamp__line .lt-line-clamp__more');
 
-    // assert.equal(
+    // assert.strictEqual(
     //   seeMoreButtonAfterResize.length,
     //   0,
     //   'see more button does not exist'
     // );
 
-    // assert.equal(
+    // assert.strictEqual(
     //   element.innerText.trim(),
     //   'helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld'
     // );
   });
-
-  test('clicking see more/see less button fires user defined action', async function(assert) {
-    assert.expect(5);
-
-    this.set('assertOnExpand', () => assert.ok(true, 'onExpand action triggered'));
-    this.set('assertOnCollapse', () => assert.ok(true, 'onCollapse action triggered'));
-
-    await render(hbs`<div id="test-conatiner" style="width: 300px; font-size: 16px; font-family: sans-serif;">
-      {{line-clamp
-        text="helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld"
-        onExpand=(action assertOnExpand)
-        onCollapse=assertOnCollapse
-      }}
-    </div>`);
-
-    const element = this.element;
-    const seeMoreButton = element.querySelectorAll('.lt-line-clamp__line .lt-line-clamp__more');
-
-    assert.ok(
-      element,
-      'line clamp target exists'
-    );
-
-    assert.equal(
-      seeMoreButton.length,
-      1,
-      'see more button exists'
-    );
-
-    seeMoreButton[0].click();
-
-    const seeLessButton = element.querySelectorAll('.lt-line-clamp__less')[0];
-
-    assert.ok(
-      seeLessButton,
-      'see less button exists'
-    );
-
-    await click(seeLessButton);
-  });
-
-  test('clicking see more/see less buttons should not bubble event', async function(assert) {
-    assert.expect(3);
-
-    this.set('assertOnParentAction', () => assert.ok(true, 'parent action should not be triggered'));
-    this.set('assertOnParentClick', () => assert.ok(true, 'parent click action should not be triggered'));
-
-    await render(hbs`
-      <div
-        id="test-conatiner"
-        style="width: 300px; font-size: 16px; font-family: sans-serif;"
-        {{action assertOnParentAction}}
-        onclick={{action assertOnParentClick}}
-        >
-        {{line-clamp
-          text="helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld"
-        }}
-      </div>
-    `);
-
-    const element = this.element;
-    const seeMoreButton = element.querySelectorAll('.lt-line-clamp__line .lt-line-clamp__more');
-
-    assert.ok(
-      element,
-      'line clamp target exists'
-    );
-
-    assert.equal(
-      seeMoreButton.length,
-      1,
-      'see more button exists'
-    );
-
-    seeMoreButton[0].click();
-
-    const seeLessButton = element.querySelectorAll('.lt-line-clamp__less')[0];
-
-    assert.ok(
-      seeLessButton,
-      'see less button exists'
-    );
-
-    await click(seeLessButton);
-  });
-
-  test('changing the component\'s text changes the component', async function(assert) {
-    assert.expect(2);
-
-    this.set('textToTruncate', 'helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld');
-
-    await render(hbs`<div id="test-conatiner" style="width: 300px; font-size: 16px; font-family: sans-serif;">
-      {{line-clamp
-        text=textToTruncate
-      }}
-    </div>`);
-
-    const element = this.element;
-
-    assert.dom(element).containsText('... See More');
-
-    this.set('textToTruncate', 'helloworld helloworld helloworld helloworld');
-
-    assert.dom(element).containsText('helloworld helloworld helloworld helloworld');
-  });
-
-  test('changing the component\'s lines changes the component', async function(assert) {
-    assert.expect(3);
-
-    this.set('textToTruncate', 'helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld');
-    this.set('linesToTruncate', 3);
-
-    await render(hbs`<div id="test-conatiner" style="width: 300px; font-size: 16px; font-family: sans-serif;">
-      {{line-clamp
-        text=textToTruncate
-        lines=linesToTruncate
-      }}
-    </div>`);
-
-    const element = this.element;
-    const length = element.innerText.trim().length;
-    assert.dom(element).containsText('... See More');
-
-    this.set('linesToTruncate', 2);
-
-    const newLength = element.innerText.trim().length;
-    assert.ok(newLength < length);
-    assert.dom(element).containsText('... See More');
-  });
-
-  test('truncation can be controlled via the truncate attribute', async function(assert) {
-    assert.expect(3);
-
-    this.set('textToTruncate', 'helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld');
-    this.set('truncate', true);
-
-    await render(hbs`<div id="test-conatiner" style="width: 300px; font-size: 16px; font-family: sans-serif;">
-      {{line-clamp
-        text=textToTruncate
-        truncate=truncate
-      }}
-    </div>`);
-
-    const element = this.element;
-    assert.dom(element).containsText('... See More');
-
-    this.set('truncate', false);
-
-    assert.equal(
-      element.innerText.trim(),
-      'helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld See Less'
-    );
-
-    this.set('truncate', true);
-    assert.dom(element).containsText('... See More');
-  });
-
-  test('initial truncation can be controlled via the truncate attribute (false case)', async function (assert) {
-    assert.expect(3);
-
-    this.set('textToTruncate', 'helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld');
-    this.set('truncate', false);
-
-    await render(hbs`<div id="test-conatiner" style="width: 300px; font-size: 16px; font-family: sans-serif;">
-      {{line-clamp
-        text=textToTruncate
-        truncate=truncate
-      }}
-    </div>`);
-
-    const element = this.element;
-    assert.dom(element).containsText('helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld See Less');
-
-    this.set('truncate', false);
-
-    assert.dom(element).containsText('helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld See Less');
-
-    this.set('truncate', true);
-
-    assert.dom(element).containsText('... See More');
-  });
-
-  test('stripText correctly strips <br> tags', async function(assert) {
-    assert.expect(2);
-
-    this.set('textToTruncate', htmlSafe('helloworld<br />helloworld<br />helloworld<br />helloworld'));
-    this.set('truncate', true);
-    this.set('stripText', true);
-
-    await render(hbs`<div id="test-conatiner" style="width: 300px; font-size: 16px; font-family: sans-serif;">
-      {{line-clamp
-        truncate=truncate
-        text=textToTruncate
-        stripText=stripText
-      }}
-    </div>`);
-
-    const element = this.element;
-    assert.equal(
-      element.innerText.trim(),
-      'helloworld helloworld helloworld helloworld'
-    );
-
-    this.set('truncate', false);
-
-    assert.equal(
-      element.innerText.trim(),
-      `helloworld\nhelloworld\nhelloworld\nhelloworld See Less`
-    );
-  });
-
-  test('stripText correctly strips preserves newlines when stripText is false', async function(assert) {
-    assert.expect(2);
-
-    this.set('textToTruncate', htmlSafe('helloworld<br />helloworld<br />helloworld<br />helloworld'));
-    this.set('truncate', true);
-    this.set('stripText', false);
-
-    await render(hbs`<div id="test-conatiner" style="width: 300px; font-size: 16px; font-family: sans-serif;">
-      {{line-clamp
-        truncate=truncate
-        text=textToTruncate
-        stripText=stripText
-      }}
-    </div>`);
-
-    const element = this.element;
-    assert.dom(element).containsText('... See More');
-
-    this.set('truncate', false);
-
-    assert.equal(element.innerText.trim(), 'helloworld\nhelloworld\nhelloworld\nhelloworld See Less')
-  });
-
-  test('null/undefined text handled correctly', async function(assert) {
-    assert.expect(2);
-
-    this.set('textToTruncate', null);
-    this.set('truncate', true);
-
-    await render(hbs`
-      {{line-clamp
-        truncate=truncate
-        text=textToTruncate
-      }}`);
-
-    const element = this.element;
-    assert.equal(
-      element.innerText.trim(),
-      ''
-    );
-
-    this.set('textToTruncate', undefined);
-
-    assert.equal(
-      element.innerText.trim(),
-      ''
-    );
-  });
-
-  test('[A11y] aria-expanded is correct', async function(assert) {
-    assert.expect(3);
-
-    await render(hbs`
-      <div style="width: 300px; font-size: 16px; font-family: sans-serif;">
-        {{line-clamp
-          text="helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld"
-          lines=1
-        }}
-      </div>`
-    );
-
-    assert.dom('[data-test-line-clamp-show-more-button]').hasAttribute('aria-expanded', "false");
-
-    await click('[data-test-line-clamp-show-more-button]');
-
-    assert.dom('[data-test-line-clamp-show-less-button]').hasAttribute('aria-expanded', "true");
-
-    await click('[data-test-line-clamp-show-less-button]');
-
-    assert.dom('[data-test-line-clamp-show-more-button]').hasAttribute('aria-expanded', "false");
-  });
-
-  test('[A11y] button is correctly focused after expanding/collapsing', async function(assert) {
-    assert.expect(2);
-
-    await render(hbs`
-      <div style="width: 300px; font-size: 16px; font-family: sans-serif;">
-        {{line-clamp
-          text="helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld"
-          lines=1
-        }}
-      </div>`
-    );
-
-    await click('[data-test-line-clamp-show-more-button]');
-
-    assert.dom('[data-test-line-clamp-show-less-button]').isFocused('show less button is focused');
-
-    await click('[data-test-line-clamp-show-less-button]');
-
-    assert.dom('[data-test-line-clamp-show-more-button]').isFocused('show more button is focused');
-  });
-})
+});

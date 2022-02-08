@@ -1,9 +1,10 @@
-import Component from '@ember/component';
+import Component from '@glimmer/component';
+import { tracked } from '@glimmer/tracking';
 import { inject as service } from '@ember/service';
-import layout from '../templates/components/line-clamp';
-import { computed } from '@ember/object';
-import { htmlSafe, isHTMLSafe } from '@ember/string';
+import { action } from '@ember/object';
+import { htmlSafe, isHTMLSafe } from '@ember/template';
 import { mutateDOM } from 'ember-batcher';
+import { scheduleOnce } from '@ember/runloop';
 
 const LINE_CLAMP_CLASS = 'lt-line-clamp';
 const SINGLE_LINE_CLAMP_CLASS = `${LINE_CLAMP_CLASS} ${LINE_CLAMP_CLASS}--single-line`;
@@ -16,7 +17,7 @@ const MORE_CLASS = `${LINE_CLAMP_CLASS}__more`;
  * Ember.Handlebars.Utils.escapeExpression has not unescapeExpression equivalent
  * hence I have unescape the text myself.
  */
-const R_ENTITIES = /&(?:([a-z0-9]+)|#x([\da-f]{1,6})|#(\d{1,8}));/ig;
+const R_ENTITIES = /&(?:([a-z0-9]+)|#x([\da-f]{1,6})|#(\d{1,8}));/gi;
 const HTML_ENTITIES_TO_CHARS = {
   '&amp;': '&',
   '&lt;': '<',
@@ -69,225 +70,231 @@ const HTML_ENTITIES_TO_CHARS = {
  *
  * @class LineClampComponent
  */
-export default Component.extend({
-  layout,
-
-  unifiedEventHandler: service('unified-event-handler'),
-
-  componentName: 'LineClamp',
-
-  tagName: 'div',
-
-  /**
-   * Attribute binding for class - sets specific CSS classes when CSS solution is available
-   */
-  classNameBindings: ['_lineClampClass'],
-
-  /**
-   * Attribute binding for style - sets specific CSS styles when CSS solution is available
-   */
-  attributeBindings: ['_lineClampStyle:style'],
+export default class LineClampComponent extends Component {
+  @service unifiedEventHandler;
 
   /**
    * Text to truncate/clamp
    * @type {String}
    */
-  text: '',
+  get text() {
+    return this.args.text ?? '';
+  }
 
   /**
    * Characters/text to be used as the overflow/ellipsis when text is truncated
    * @type {String}
    * @default '...'
    */
-  ellipsis: '...',
+  get ellipsis() {
+    return this.args.ellipsis ?? '...';
+  }
 
   /**
    * The number of lines at which to clamp text
    * @type {Number}
    * @default 3
    */
-  lines: 3,
+  get lines() {
+    return this.args.lines ?? 3;
+  }
 
   /**
    * An override to the default behavior when clamping text and removing `<br>` tags and `\n` characters.
    * @type {Boolean}
    * @default true
    */
-  stripText: true,
+  get stripText() {
+    return this.args.stripText ?? true;
+  }
 
   /**
    * An override that can be used to hide both seeMore and seeLess interactive elements
    * @type {Boolean}
    * @default true
    */
-  interactive: true,
+  get interactive() {
+    return this.args.interactive ?? true;
+  }
 
   /**
    * An override that can be used to skip native CSS solution when available and instead use JS solution
    * @type {Boolean}
    * @default false
    */
-  useJsOnly: false,
+  get useJsOnly() {
+    return this.args.useJsOnly ?? false;
+  }
 
   /**
    * Attribute that can be used to control truncation from outside of the component
    * @type {Boolean}
    * @default true
    */
-  truncate: true,
+  get truncate() {
+    return this.args.truncate ?? true;
+  }
 
   /**
    * An override that can be used to hide "see more" interactive element
    * @type {Boolean}
    * @default true
    */
-  showMoreButton: true,
+  get showMoreButton() {
+    return this.args.showMoreButton ?? true;
+  }
 
   /**
    * An override that can be used to hide "see less" interactive element
    * @type {Boolean}
    * @default true
    */
-  showLessButton: true,
+  get showLessButton() {
+    return this.args.showLessButton ?? true;
+  }
 
   /**
    * Text to display in "see more" interactive element
    * @type {String}
    * @default 'See More'
    */
-  seeMoreText: 'See More',
+  get seeMoreText() {
+    return this.args.seeMoreText ?? 'See More';
+  }
 
   /**
    * Text to display in "see less" interactive element
    * @type {String}
    * @default 'See Less'
    */
-  seeLessText: 'See Less',
+  get seeLessText() {
+    return this.args.seeLessText ?? 'See Less';
+  }
 
   /**
    * Based on showMoreButton and interactive flags
    * @type {Boolean}
    * @private
    */
-  _isInteractive: true,
+  @tracked _isInteractive = true;
 
   /**
    * Property to keep an internal state for showMoreButton and used in the template
    * @type {Boolean}
    * @private
    */
-  _showMoreButton: true,
+  @tracked _showMoreButton = true;
 
   /**
    * Property to keep an internal state for showLessButton and used in the template
    * @type {Boolean}
    * @private
    */
-  _showLessButton: true,
+  @tracked _showLessButton = true;
 
   /**
    * Used to track state of text as expanded or not expanded/collapsed
    * @type {Boolean}
    * @private
    */
-  _expanded: false,
+  @tracked _expanded = false;
 
   /**
    * Used to track state of text as truncated or not truncated
    * @type {Boolean}
    * @private
    */
-  _truncated: true,
+  @tracked _truncated = true;
 
   /**
    * Used to track changes in the `truncate` attribute
    */
-  _oldTruncate: true,
+  @tracked _oldTruncate = true;
 
   /**
    * Used to track state and know if text should be stripped
    * @type {Boolean}
    * @private
    */
-  _stripText: false,
+  @tracked _stripText = false;
+
+  @tracked _lineClampClass;
+  @tracked _lineClampStyle;
+  @tracked element;
 
   /**
    * Property that returns a stripped version of the text with no <br> tags
    * @type {String}
    * @private
    */
-  _strippedText: computed('text', '_stripText', function getStrippedText() {
+  get _strippedText() {
     if (typeof FastBoot === 'undefined') {
-      if (typeof window !== 'undefined' && !!this.element && this.get('_stripText')) {
-        if ((this._shouldUseNativeLineClampCSS() || this._shouldUseNativeTextOverflowCSS())) {
-          return this._stripBrTags(this._unescapeText(this.get('text') || ''));
+      if (typeof window !== 'undefined' && !!this.element && this._stripText) {
+        if (
+          this._shouldUseNativeLineClampCSS() ||
+          this._shouldUseNativeTextOverflowCSS()
+        ) {
+          return this._stripBrTags(this._unescapeText(this.text));
         }
-
         return '';
       }
     }
-
     return '';
-  }),
+  }
 
   /**
    * Property that returns array of lines to render
    * @type {Array}
    * @private
    */
-  _textLines: computed('lines', 'text', 'targetWidth', '_expanded', function getTextLines() {
+  get _textLines() {
     if (typeof FastBoot === 'undefined') {
-      const mounted = !!(this.element && this.get('targetWidth'));
+      const mounted = !!(this.element && this.targetWidth);
       if (typeof window !== 'undefined' && mounted) {
-        if (!this.get('_expanded')) {
+        if (!this._expanded) {
           return this._getLines();
         } else {
-          this.onTruncate(false);
+          scheduleOnce('afterRender', this, this.onTruncate, false);
           return [];
         }
       }
-
       return [];
     }
-
     return [];
-  }),
+  }
 
-  init() {
-    this._super(...arguments);
+  constructor() {
+    super(...arguments);
 
     // interative prop overpowers showMoreButton and showLessButton when false
     this._showMoreButton = this.interactive && this.showMoreButton;
-    this._showLessButton = this.interactive && this.showLessButton;
+    this._showLessButton = this._showMoreButton
+      ? this.interactive && this.showLessButton
+      : false;
 
     // Interativity of the component is driven by showMoreButton value
     this._isInteractive = this._showMoreButton;
+  }
 
-    // No point in showLessButton true if showMoreButton is false
-    this._showLessButton = this._showMoreButton ? this._showLessButton : false;
-
-    this._getLines = this._getLines.bind(this);
-    this.onResize = this.onResize.bind(this);
-    this.onTruncate = this.onTruncate.bind(this);
-    this._measureWidth = this._measureWidth.bind(this);
-    this._calculateTargetWidth = this._calculateTargetWidth.bind(this);
-  },
-
-  didReceiveAttrs() {
-    if (this.get('truncate') !== this.get('_oldTruncate')) {
-      this._handleNewTruncateAttr(this.get('truncate'));
-      this.set('_oldTruncate', this.get('truncate'));
+  @action
+  onDidUpdate() {
+    if (this.truncate !== this._oldTruncate) {
+      this._handleNewTruncateAttr(this.truncate);
+      this._oldTruncate = this.truncate;
     }
-  },
+  }
 
-  didInsertElement() {
+  @action
+  onDidInsert(element) {
+    this.element = element;
+
     if (this._shouldUseNativeLineClampCSS()) {
-      this.set('_lineClampClass', MULTI_LINE_CLAMP_CLASS);
-      this.set('_lineClampStyle', htmlSafe(`-webkit-line-clamp: ${this.get('lines')}`));
-      this.set('_stripText', this.stripText);
+      this._lineClampClass = MULTI_LINE_CLAMP_CLASS;
+      this._lineClampStyle = htmlSafe(`-webkit-line-clamp: ${this.lines}`);
+      this._stripText = this.stripText;
     } else if (this._shouldUseNativeTextOverflowCSS()) {
-      this.set('_lineClampClass', SINGLE_LINE_CLAMP_CLASS);
-      this.set('_stripText', this.stripText);
+      this._lineClampClass = SINGLE_LINE_CLAMP_CLASS;
+      this._stripText = this.stripText;
     } else {
       const canvas = document.createElement('canvas');
       this.canvasContext = canvas.getContext('2d');
@@ -298,9 +305,12 @@ export default Component.extend({
       this._calculateTargetWidth();
       this._bindResize();
     }
-  },
 
-  willDestroyElement() {
+    this.onDidUpdate();
+  }
+
+  willDestroy() {
+    super.willDestroy(...arguments);
     if (this.dummyEllipsisElement) {
       this.element.removeChild(this.dummyEllipsisElement);
     }
@@ -308,42 +318,41 @@ export default Component.extend({
     this._unbindResize();
     window.cancelAnimationFrame(this._scheduledResizeAnimationFrame);
 
-    this._super(...arguments);
-  },
+    super.willDestroy(...arguments);
+  }
 
   onResize() {
     if (this._scheduledResizeAnimationFrame) {
       window.cancelAnimationFrame(this._scheduledResizeAnimationFrame);
     }
 
-    this._scheduledResizeAnimationFrame = window.requestAnimationFrame(this._calculateTargetWidth);
-  },
+    this._scheduledResizeAnimationFrame = window.requestAnimationFrame(
+      this._calculateTargetWidth
+    );
+  }
 
   onTruncate(didTruncate) {
     this._handleTruncate(didTruncate);
 
-    const handleTruncate = this.getAttr('handleTruncate');
-    if (handleTruncate) {
-      if (typeof handleTruncate === 'function') {
-        handleTruncate(didTruncate);
-      } else {
-        this.sendAction('handleTruncate', didTruncate); // eslint-disable-line
-      }
+    if (typeof this.args.handleTruncate === 'function') {
+      this.args.handleTruncate(didTruncate);
     }
-  },
+  }
 
   _handleNewTruncateAttr(truncate) {
     if (this._shouldUseNativeLineClampCSS()) {
-      this.set('_lineClampClass', truncate ? MULTI_LINE_CLAMP_CLASS : '');
-      this.set('_lineClampStyle', truncate ? htmlSafe(`-webkit-line-clamp: ${this.get('lines')}`) : htmlSafe(''));
-      this.set('_stripText', this.stripText && truncate);
+      this._lineClampClass = truncate ? MULTI_LINE_CLAMP_CLASS : '';
+      this._lineClampStyle = htmlSafe(
+        truncate ? `-webkit-line-clamp: ${this.lines}` : ''
+      );
+      this._stripText = this.stripText && truncate;
     } else if (this._shouldUseNativeTextOverflowCSS()) {
-      this.set('_lineClampClass', truncate ? SINGLE_LINE_CLAMP_CLASS : '');
-      this.set('_stripText', this.stripText && truncate);
+      this._lineClampClass = truncate ? SINGLE_LINE_CLAMP_CLASS : '';
+      this._stripText = this.stripText && truncate;
     }
 
     this._onToggleTruncate();
-  },
+  }
 
   /**
    * Calculates target width for the text (i.e. parent elment width)
@@ -364,13 +373,13 @@ export default Component.extend({
         style['font-weight'],
         style['font-style'],
         style['font-size'],
-        style['font-family']
+        style['font-family'],
       ].join(' ');
 
       this.canvasContext.font = font;
-      this.set('targetWidth', targetWidth);
+      this.targetWidth = targetWidth;
     }
-  },
+  }
 
   /**
    * Calculates text width using canvas
@@ -381,7 +390,7 @@ export default Component.extend({
    */
   _measureWidth(text) {
     return this.canvasContext && this.canvasContext.measureText(text).width;
-  },
+  }
 
   /**
    * Gets an element offsetWidth
@@ -392,7 +401,7 @@ export default Component.extend({
    */
   _getElementWidth(node) {
     return node.offsetWidth;
-  },
+  }
 
   // TODO: Remove this method - if consuming app has responsive styles that affect ellipsis element
   // this will give wrong width
@@ -408,7 +417,7 @@ export default Component.extend({
     }
 
     return this._ellipsisWidth;
-  },
+  }
 
   /**
    * Utility method to create a DOM element mimicking the elment to be used for textoverflow/clamping
@@ -420,8 +429,10 @@ export default Component.extend({
   _createDummyEllipsisElement() {
     this.dummyEllipsisElement = document.createElement('span');
     this.dummyEllipsisElement.className = `${ELLIPSIS_CLASS} ${ELLIPSIS_DUMMY_CLASS}`;
-    this.dummyEllipsisElement.innerHTML = this._isInteractive ? `${this.ellipsis} <a class="${MORE_CLASS}" href="#" role="button">${this.seeMoreText}</a>` : this.ellipsis;
-  },
+    this.dummyEllipsisElement.innerHTML = this._isInteractive
+      ? `${this.ellipsis} <a class="${MORE_CLASS}" href="#" role="button">${this.seeMoreText}</a>`
+      : this.ellipsis;
+  }
 
   /**
    * Checks for -webkit-line-clamp support, _isInteractive and lines > 1
@@ -430,8 +441,15 @@ export default Component.extend({
    * @private
    */
   _shouldUseNativeLineClampCSS() {
-    return this.get('useJsOnly') ? false : 'webkitLineClamp' in document.body.style && !this._isInteractive && this.get('lines') > 1;
-  },
+    if (this.useJsOnly) {
+      return false;
+    }
+    return (
+      'webkitLineClamp' in document.body.style &&
+      !this._isInteractive &&
+      this.lines > 1
+    );
+  }
 
   /**
    * Checks for _isInteractive and lines === 1
@@ -440,8 +458,8 @@ export default Component.extend({
    * @private
    */
   _shouldUseNativeTextOverflowCSS() {
-    return this.get('useJsOnly') ? false : !this._isInteractive && this.get('lines') === 1;
-  },
+    return this.useJsOnly ? false : !this._isInteractive && this.lines === 1;
+  }
 
   /**
    * Binds/registers resize listener
@@ -450,9 +468,9 @@ export default Component.extend({
    * @private
    */
   _bindResize() {
-    this.get('unifiedEventHandler').register('window', 'resize', this.get('onResize'));
+    this.unifiedEventHandler.register('window', 'resize', this.onResize);
     this._resizeHandlerRegistered = true;
-  },
+  }
 
   /**
    * Unbinds/Unregisters resize listener in 'willDestroy'
@@ -462,10 +480,10 @@ export default Component.extend({
    */
   _unbindResize() {
     if (this._resizeHandlerRegistered) {
-      this.get('unifiedEventHandler').unregister('window', 'resize', this.get('onResize'));
+      this.unifiedEventHandler.unregister('window', 'resize', this.onResize);
       this._resizeHandlerRegistered = false;
     }
-  },
+  }
 
   /**
    * This method removes `<br>` tags in the text
@@ -474,8 +492,11 @@ export default Component.extend({
    * @private
    */
   _stripBrTags(text) {
-    return text.toString().replace(/<br.*?[/]?>/gi, ' ').replace(/\r\n|\n|\r/g, ' ');
-  },
+    return text
+      .toString()
+      .replace(/<br.*?[/]?>/gi, ' ')
+      .replace(/\r\n|\n|\r/g, ' ');
+  }
 
   /**
    * This method converts `<br>` tags in the text to newline characters
@@ -485,7 +506,7 @@ export default Component.extend({
    */
   _convertBrTags(text) {
     return text.toString().replace(/<br.*?[/]?>/gi, '\n');
-  },
+  }
 
   /**
    * This method unescapes the string when escaped
@@ -495,15 +516,18 @@ export default Component.extend({
    * @private
    */
   _unescapeText(text) {
-    return text.toString().replace(R_ENTITIES, match =>
-      HTML_ENTITIES_TO_CHARS[match] ||
-      HTML_ENTITIES_TO_CHARS[match.replace(
-        /([0-9]+)/gi,
-        m => `x${(+m).toString(16)}`
-      )] ||
-      match
-    );
-  },
+    return text
+      .toString()
+      .replace(
+        R_ENTITIES,
+        (match) =>
+          HTML_ENTITIES_TO_CHARS[match] ||
+          HTML_ENTITIES_TO_CHARS[
+            match.replace(/([0-9]+)/gi, (m) => `x${(+m).toString(16)}`)
+          ] ||
+          match
+      );
+  }
 
   /**
    * This method does the truncation by maipulating the text and creating lines
@@ -514,11 +538,15 @@ export default Component.extend({
    */
   _getLines() {
     const lines = [];
-    const numLines = this.get('lines');
-    const text = this.get('text') || '';
+    const numLines = this.lines;
+    const text = this.text;
     const textToTruncate = isHTMLSafe(text) ? this._unescapeText(text) : text;
-    const formattedText = this.stripText ? this._stripBrTags(textToTruncate) : this._convertBrTags(textToTruncate);
-    const textLines = formattedText.split('\n').map(line => line.trim().split(' '));
+    const formattedText = this.stripText
+      ? this._stripBrTags(textToTruncate)
+      : this._convertBrTags(textToTruncate);
+    const textLines = formattedText
+      .split('\n')
+      .map((line) => line.trim().split(' '));
     let didTruncate = true;
 
     const ellipsisWidth = this._getEllipsisWidth();
@@ -564,7 +592,10 @@ export default Component.extend({
 
           const testLine = textRest.slice(0, middle + 1);
 
-          if (this._measureWidth(testLine) + ellipsisWidth <= this.targetWidth) {
+          if (
+            this._measureWidth(testLine) + ellipsisWidth <=
+            this.targetWidth
+          ) {
             lower = middle + 1;
           } else {
             upper = middle - 1;
@@ -609,10 +640,10 @@ export default Component.extend({
       }
     }
 
-    this.onTruncate(didTruncate);
+    scheduleOnce('afterRender', this, this.onTruncate, didTruncate);
 
     return lines;
-  },
+  }
 
   /**
    * Handles state for _truncated
@@ -622,62 +653,47 @@ export default Component.extend({
    * @private
    */
   _handleTruncate(truncated) {
-    if (this.get('_truncated') !== truncated) {
-      this.set('_truncated', truncated);
+    if (this._truncated !== truncated) {
+      this._truncated = truncated;
     }
-  },
+  }
 
   _onToggleTruncate() {
-    this.toggleProperty('_expanded');
-
-    const justExpanded = this.get('_expanded');
+    this._expanded = !this._expanded;
+    const justExpanded = this._expanded;
 
     if (justExpanded) {
       mutateDOM(() => {
-        const showLessButton = this.element.querySelector('#line-clamp-show-less-button');
+        const showLessButton = this.element.querySelector(
+          '#line-clamp-show-less-button'
+        );
         if (showLessButton) {
           showLessButton.focus();
         }
       });
-      const onExpand = this.getAttr('onExpand');
-
-      if (onExpand) {
-        if (typeof onExpand === 'function') {
-          onExpand();
-        } else {
-          this.sendAction('onExpand'); // eslint-disable-line
-        }
+      if (typeof this.args.onExpand === 'function') {
+        this.args.onExpand();
       }
     } else {
       mutateDOM(() => {
-        const showMoreButton = this.element.querySelector('#line-clamp-show-more-button');
+        const showMoreButton = this.element.querySelector(
+          '#line-clamp-show-more-button'
+        );
         if (showMoreButton) {
           showMoreButton.focus();
         }
       });
 
-      const onCollapse = this.getAttr('onCollapse');
-
-      if (onCollapse) {
-        if (typeof onCollapse === 'function') {
-          onCollapse();
-        } else {
-          this.sendAction('onCollapse'); // eslint-disable-line
-        }
+      if (typeof this.args.onCollapse === 'function') {
+        this.args.onCollapse();
       }
     }
-  },
+  }
 
-  actions: {
-    /**
-     * We use a closure action to prevent closure actions on containing elements from being called
-     * @param {Object} event
-     */
-    toggleTruncate(event) {
-      event.preventDefault();
-      event.stopPropagation();
-
-      this._onToggleTruncate();
-    },
-  },
-});
+  @action
+  toggleTruncate(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    this._onToggleTruncate();
+  }
+}
